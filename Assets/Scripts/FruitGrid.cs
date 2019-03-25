@@ -21,6 +21,9 @@ public class Player
         y = UnityEngine.Random.Range(0, 8);
         color = Random.ColorHSV();
         this.grid = grid;
+
+        grid.At(x, y).SetName(name);
+        grid.At(x, y).SetColor(color);
     }
 
     public void MoveHorizontal(int xd)

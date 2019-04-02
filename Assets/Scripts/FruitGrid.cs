@@ -14,32 +14,119 @@ public class Player
     string name;
     Color color;
     List2<FruitGridElement> grid;
+
+    bool hasGun = false;
     
     public Player(string name, List2<FruitGridElement> grid)
     {
-        x = UnityEngine.Random.Range(0, 8);
-        y = UnityEngine.Random.Range(0, 8);
-        color = Random.ColorHSV();
+        this.name = name;
         this.grid = grid;
 
-        grid.At(x, y).SetName(name);
-        grid.At(x, y).SetColor(color);
+        x = 0;
+        y = 0;
+        while (grid.At(x, y).IsOccupied())
+        {
+            x = UnityEngine.Random.Range(0, 8);
+            y = UnityEngine.Random.Range(0, 8);
+        }
+        //color = Random.ColorHSV();
+        color = Color.red;
+
+        OccupyCurrentCell();
     }
 
-    public void MoveHorizontal(int xd)
+    public void GetGun()
     {
-        grid.At(x, y).SetName("");
-        x = Mathf.Clamp(x + xd, 0, 7);
-        grid.At(x, y).SetName(name);
-        grid.At(x, y).SetColor(color);
+        hasGun = true;
     }
 
-    public void MoveVertical(int yd)
+    public void LoseGun()
     {
-        grid.At(x, y).SetName("");
-        y = Mathf.Clamp(y + yd, 0, 7);
-        grid.At(x, y).SetName(name);
-        grid.At(x, y).SetColor(color);
+        hasGun = false;
+        GetCurrentCell().SetPlayerGun(false);
+    }
+
+    public FruitGridElement GetCurrentCell()
+    {
+        return grid.At(x, y);
+    }
+
+    public void ClearPlayerFromCell()
+    {
+        FruitGridElement element = grid.At(x, y);
+        element.SetName("");
+        element.SetOccupied(false);
+        element.SetPlayerGun(false);
+    }
+
+    void OccupyCurrentCell()
+    {
+        FruitGridElement element = grid.At(x, y);
+        element.SetName(name);
+        element.SetColor(color);
+        element.SetOccupied(true);
+        if (hasGun)
+        {
+            element.SetPlayerGun(true);
+        }
+    }
+
+    public void MoveHorizontal(int xdelta)
+    {
+        ClearPlayerFromCell();
+
+        int sign = UtilMath.SignWithZero(xdelta);
+        int result = x;
+        for (int i = sign; i != xdelta + sign; i += sign)
+        {
+            if (!grid.IsWithinMatrix(x + i, y))
+            {
+                break;
+            }
+            if (grid.At(x + i, y).IsOccupied())
+            {
+                break;
+            }
+            result = x + i;
+            FruitGridElement element = grid.At(result, y);
+            if (element.HasGun())
+            {
+                GetGun();
+                element.SetGun(false);
+            }
+        }
+        x = result;
+
+        OccupyCurrentCell();
+    }
+
+    public void MoveVertical(int ydelta)
+    {
+        ClearPlayerFromCell();
+
+        int sign = UtilMath.SignWithZero(ydelta);
+        int result = y;
+        for (int i = sign; i != ydelta + sign; i += sign)
+        {
+            if (!grid.IsWithinMatrix(x, y + i))
+            {
+                break;
+            }
+            if (grid.At(x, y + i).IsOccupied())
+            {
+                break;
+            }
+            result = y + i;
+            FruitGridElement element = grid.At(x, result);
+            if (element.HasGun())
+            {
+                GetGun();
+                element.SetGun(false);
+            }
+        }
+        y = result;
+
+        OccupyCurrentCell();
     }
 
     public int GetX()
@@ -56,6 +143,16 @@ public class Player
     {
         return color;
     }
+
+    public string GetName()
+    {
+        return name;
+    }
+
+    public bool HasGun()
+    {
+        return hasGun;
+    }
 }
 
 // The collection of all players who have joined the game.
@@ -69,7 +166,7 @@ public class Playerbase
     }
 
     // String mapped to player.
-    Dictionary<string, Player> players;
+    Dictionary<string, Player> players = new Dictionary<string, Player>();
     // Reference to the grid.
     List2<FruitGridElement> grid;
 
@@ -101,6 +198,49 @@ public class Playerbase
     {
         return players.TryGetValue(playerName, out player);
     }
+
+    // Kills the given player.
+    public void Kill(Player player)
+    {
+        player.ClearPlayerFromCell();
+        players.Remove(player.GetName());
+    }
+
+    // Kills a random player.
+    // callerName refers to the name of the player calling this method.
+    // The player calling this method cannot be chosen.
+    public void KillRandom(string callerName)
+    {
+        Player player;
+        if (TryGetPlayer(callerName, out player))
+        {
+            List<Player> possiblePlayers = players.Values.ToList();
+            possiblePlayers.Remove(player);
+            if (possiblePlayers.Count != 0)
+            {
+                Kill(possiblePlayers.GetRandomElement());
+            }
+        }
+    }
+
+    public bool HasGun(string playerName)
+    {
+        Player player;
+        if (players.TryGetValue(playerName, out player))
+        {
+            return player.HasGun();
+        }
+        return false;
+    }
+
+    public void RemoveGun(string playerName)
+    {
+        Player player;
+        if (players.TryGetValue(playerName, out player))
+        {
+            player.LoseGun();
+        }
+    }
 }
 
 public class FruitGrid : MonoBehaviour
@@ -129,9 +269,7 @@ public class FruitGrid : MonoBehaviour
     [Tooltip("The height of the grid.")]
     int height = 8;
 
-    // The name that the SVAI uses when running commands.
-    const string botName = "Bot";
-
+    // The collection of players on the grid.
     Playerbase players;
 
     private void Start()
@@ -161,7 +299,7 @@ public class FruitGrid : MonoBehaviour
     // This method runs when a player successfully enters a Twitch chat command.
     private void PlayerDidCommand()
     {
-
+        //Debug.Log("FruitGrid.PlayerDidCommand()");
     }
 
     private bool CommandGetCoordinates(List<string> commandArgs, out int x, out int y)
@@ -222,6 +360,26 @@ public class FruitGrid : MonoBehaviour
             case "d":
                 CommandPlayerMove(e.Command.ArgumentsAsList, sourceName,
                     (p, x) => p.MoveVertical(-x));
+                break;
+
+            case "random":
+                if (players.HasGun(sourceName))
+                {
+                    players.KillRandom(sourceName);
+                    players.RemoveGun(sourceName);
+                }
+                break;
+
+            default:
+                if (players.HasGun(sourceName))
+                {
+                    Player player;
+                    if (players.TryGetPlayer(command, out player))
+                    {
+                        players.Kill(player);
+                        players.RemoveGun(sourceName);
+                    }
+                }
                 break;
 
                 /*

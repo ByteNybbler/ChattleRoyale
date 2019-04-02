@@ -18,11 +18,17 @@ public class TwitchClient : MonoBehaviour
     public delegate void ClientCommandReceivedHandler(object sender, OnChatCommandReceivedArgs e);
     public event ClientCommandReceivedHandler ClientCommandReceived;
 
+    [SerializeField]
+    [Tooltip("The default channel name to use for the Twitch client.")]
+    string defaultChannelName = "toomuchfanservice";
+
     Client client;
     static string channelName = "";
 
     private void Start()
     {
+        SetChannelName(defaultChannelName);
+
         // Make sure the game is always running.
         Application.runInBackground = true;
 

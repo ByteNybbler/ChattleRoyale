@@ -22,15 +22,16 @@ public class Player
         this.name = name;
         this.grid = grid;
 
-        x = 0;
-        y = 0;
+        x = UnityEngine.Random.Range(0, 8);
+        y = UnityEngine.Random.Range(0, 8);
         while (grid.At(x, y).IsOccupied())
         {
             x = UnityEngine.Random.Range(0, 8);
             y = UnityEngine.Random.Range(0, 8);
         }
         //color = Random.ColorHSV();
-        color = Color.red;
+        //color = Color.red;
+        color = Random.ColorHSV(0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f);
 
         OccupyCurrentCell();
     }
@@ -338,7 +339,7 @@ public class FruitGrid : MonoBehaviour
         switch (command)
         {
             case "help":
-                client.SendWhisper(sourceName, "no");
+                client.SendWhisper(sourceName, "Hello! Welcome to Chattle Royale! To join the game, wait until the Lobby screen then type, “!join” followed by a space then your three letter nickname! To move during the game, use ! then any wasd key followed by a space and a number to move that many squares, like “!w 3”. Once you have a weapon, to eliminate another player, type their username after !, !random for a random available player, or !shoot wasd to shoot in a specific direction!");
                 break;
 
             case "join":

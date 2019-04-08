@@ -6,6 +6,13 @@ using System.Collections.Generic;
 using UnityEngine;
 using TwitchLib.Client.Events;
 using System.Linq;
+using System.Text.RegularExpressions;
+
+public enum GameState
+{
+    Lobby,
+    Gameplay
+}
 
 public class Player
 {
@@ -22,6 +29,7 @@ public class Player
         this.name = name;
         this.grid = grid;
 
+        // TODO: Rewrite this so it doesn't have to check for grid occupation.
         x = UnityEngine.Random.Range(0, 8);
         y = UnityEngine.Random.Range(0, 8);
         while (grid.At(x, y).IsOccupied())
@@ -56,6 +64,7 @@ public class Player
     {
         FruitGridElement element = grid.At(x, y);
         element.SetName("");
+        element.SetColor(new Color(0, 0, 0, 0));
         element.SetOccupied(false);
         element.SetPlayerGun(false);
     }
@@ -66,6 +75,11 @@ public class Player
         element.SetName(name);
         element.SetColor(color);
         element.SetOccupied(true);
+        if (element.HasGun())
+        {
+            GetGun();
+            element.SetGun(false);
+        }
         if (hasGun)
         {
             element.SetPlayerGun(true);
@@ -90,11 +104,13 @@ public class Player
             }
             result = x + i;
             FruitGridElement element = grid.At(result, y);
+            /*
             if (element.HasGun())
             {
                 GetGun();
                 element.SetGun(false);
             }
+            */
         }
         x = result;
 
@@ -119,11 +135,13 @@ public class Player
             }
             result = y + i;
             FruitGridElement element = grid.At(x, result);
+            /*
             if (element.HasGun())
             {
                 GetGun();
                 element.SetGun(false);
             }
+            */
         }
         y = result;
 
@@ -163,11 +181,15 @@ public class Playerbase
     {
         Success,
         AlreadyJoined,
+        NameAlreadyTaken,
         GameIsFull
     }
 
-    // String mapped to player.
+    // Dictionary mapping chat usernames to player instances.
     Dictionary<string, Player> players = new Dictionary<string, Player>();
+    // Dictionary mapping in-game usernames to chat usernames.
+    Dictionary<string, string> gameNamesToChatNames = new Dictionary<string, string>();
+
     // Reference to the grid.
     List2<FruitGridElement> grid;
 
@@ -181,22 +203,46 @@ public class Playerbase
         return players.ContainsKey(playerName);
     }
 
+    public bool GameNameIsTaken(string gameName)
+    {
+        //return players.Values.Any((p) => p.GetName() == gameName);
+        return gameNamesToChatNames.ContainsKey(gameName);
+    }
+
+    public bool TryConvertToChatName(ref string name)
+    {
+        string newName = name;
+        newName = newName.ToUpper();
+        if (gameNamesToChatNames.TryGetValue(newName, out newName))
+        {
+            name = newName;
+            return true;
+        }
+        return false;
+    }
+
     // TODO: Check if game is full.
-    public JoinResult TryJoin(string playerName)
+    public JoinResult TryJoin(string playerName, string gameName)
     {
         if (PlayerIsInGame(playerName))
         {
             return JoinResult.AlreadyJoined;
         }
+        else if (GameNameIsTaken(gameName))
+        {
+            return JoinResult.NameAlreadyTaken;
+        }
         else
         {
-            players[playerName] = new Player(playerName, grid);
+            players[playerName] = new Player(gameName, grid);
+            gameNamesToChatNames[gameName] = playerName;
             return JoinResult.Success;
         }
     }
 
     public bool TryGetPlayer(string playerName, out Player player)
     {
+        TryConvertToChatName(ref playerName);
         return players.TryGetValue(playerName, out player);
     }
 
@@ -219,13 +265,16 @@ public class Playerbase
             possiblePlayers.Remove(player);
             if (possiblePlayers.Count != 0)
             {
-                Kill(possiblePlayers.GetRandomElement());
+                Player target = possiblePlayers.GetRandomElement();
+                Kill(target);
+                Debug.Log("HE WHO DIES: " + target.GetName());
             }
         }
     }
 
     public bool HasGun(string playerName)
     {
+        TryConvertToChatName(ref playerName);
         Player player;
         if (players.TryGetValue(playerName, out player))
         {
@@ -236,6 +285,7 @@ public class Playerbase
 
     public void RemoveGun(string playerName)
     {
+        TryConvertToChatName(ref playerName);
         Player player;
         if (players.TryGetValue(playerName, out player))
         {
@@ -270,8 +320,15 @@ public class FruitGrid : MonoBehaviour
     [Tooltip("The height of the grid.")]
     int height = 8;
 
+    [SerializeField]
+    [Tooltip("The start game object to disable when the game starts.")]
+    GameObject startGame;
+
     // The collection of players on the grid.
     Playerbase players;
+
+    // The current state of the game.
+    GameState gameState = GameState.Lobby;
 
     private void Start()
     {
@@ -284,12 +341,19 @@ public class FruitGrid : MonoBehaviour
         */
 
         elements = RectTransformGridCreator.MakeGrid<FruitGridElement>(
-            width, height, prefabCell, true, gridContainer,
-            prefabAxisMarking: prefabAxisMarking);
+            width, height, prefabCell, true, gridContainer
+            //, prefabAxisMarking: prefabAxisMarking
+            );
 
         players = new Playerbase(elements);
 
         client.ClientCommandReceived += ClientCommandReceived;
+    }
+
+    public void PlayGame()
+    {
+        gameState = GameState.Gameplay;
+        startGame.SetActive(false);
     }
 
     private FruitGridElement GetElement(int x, int y)
@@ -324,9 +388,12 @@ public class FruitGrid : MonoBehaviour
                 int x;
                 if (int.TryParse(commandArgs[0], out x))
                 {
-                    //player.MoveHorizontal(x);
                     callback(player, x);
                 }
+            }
+            else
+            {
+                callback(player, 1);
             }
         }
     }
@@ -339,69 +406,167 @@ public class FruitGrid : MonoBehaviour
         switch (command)
         {
             case "help":
-                client.SendWhisper(sourceName, "Hello! Welcome to Chattle Royale! To join the game, wait until the Lobby screen then type, “!join” followed by a space then your three letter nickname! To move during the game, use ! then any wasd key followed by a space and a number to move that many squares, like “!w 3”. Once you have a weapon, to eliminate another player, type their username after !, !random for a random available player, or !shoot wasd to shoot in a specific direction!");
+                //client.SendWhisper(sourceName, "Hello! Welcome to Chattle Royale! To join the game, wait until the Lobby screen then type, “!join” followed by a space then your three letter nickname! To move during the game, use ! then any wasd key followed by a space and a number to move that many squares, like “!w 3”. Once you have a weapon, to eliminate another player, type their username after !, !random for a random available player, or !shoot wasd to shoot in a specific direction!");
+                client.SendWhisper(sourceName, "Hello! Welcome to Chattle Royale! To join the game, wait until the Lobby screen then type, “!join” followed by a space then your three letter nickname! To move during the game, use ! then any wasd key followed by a space and a number to move that many squares, like “!w 3”. Once you have a weapon, to eliminate another player, type their username after !, or !random for a random available player!");
                 break;
+        }
 
-            case "join":
-                players.TryJoin(sourceName);
-                break;
-
-            case "r":
-                CommandPlayerMove(e.Command.ArgumentsAsList, sourceName,
-                    (p, x) => p.MoveHorizontal(x));
-                break;
-            case "l":
-                CommandPlayerMove(e.Command.ArgumentsAsList, sourceName,
-                    (p, x) => p.MoveHorizontal(-x));
-                break;
-            case "u":
-                CommandPlayerMove(e.Command.ArgumentsAsList, sourceName,
-                    (p, x) => p.MoveVertical(x));
-                break;
-            case "d":
-                CommandPlayerMove(e.Command.ArgumentsAsList, sourceName,
-                    (p, x) => p.MoveVertical(-x));
-                break;
-
-            case "random":
-                if (players.HasGun(sourceName))
+        switch (gameState)
+        {
+            case GameState.Lobby:
+                switch (command)
                 {
-                    players.KillRandom(sourceName);
-                    players.RemoveGun(sourceName);
+                    case "join":
+                        // Determine the player's in-game name.
+                        // By default, use the first three letters of their Twitch name.
+                        string gameName = sourceName;
+                        if (e.Command.ArgumentsAsList.Count >= 1)
+                        {
+                            gameName = e.Command.ArgumentsAsList[0];
+                            if (gameName.Length < 3)
+                            {
+                                client.SendWhisper(sourceName,
+                                    "Your name must be at least 3 characters long!");
+                                break;
+                            }
+                            if (!Regex.IsMatch(gameName, @"^[a-zA-Z]+$"))
+                            {
+                                client.SendWhisper(sourceName,
+                                    "Your name must contain only letters!");
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            // If the first characters of the Twitch account's name can't be
+                            // used, go with a randomized name instead.
+                            if (!Regex.IsMatch(gameName.Substring(0, 3), @"^[a-zA-Z]+$"))
+                            {
+                                gameName = UtilRandom.Spam(3);
+                            }
+                            /*
+                            // Remove numbers from name.
+                            gameName = new string(gameName.Where(c => char.IsLetter(c)).ToArray());
+                            if (gameName.Length < 3)
+                            {
+
+                            }
+                            */
+                        }
+                        gameName = gameName.Substring(0, 3).ToUpper();
+                        Playerbase.JoinResult result = players.TryJoin(sourceName, gameName);
+                        switch (result)
+                        {
+                            case Playerbase.JoinResult.Success:
+                                client.SendWhisper(sourceName,
+                                    "You have successfully joined the game as " +
+                                    gameName + ".");
+                                break;
+
+                            case Playerbase.JoinResult.NameAlreadyTaken:
+                                client.SendWhisper(sourceName,
+                                    "The name " + gameName + " is already taken.");
+                                break;
+
+                            case Playerbase.JoinResult.AlreadyJoined:
+                                client.SendWhisper(sourceName,
+                                    "You can't join the same game twice!");
+                                break;
+
+                            case Playerbase.JoinResult.GameIsFull:
+                                client.SendWhisper(sourceName,
+                                    "The game is full. No more players can join.");
+                                break;
+                        }
+                        break;
+
+                    case "w":
+                        CommandPlayerMove(e.Command.ArgumentsAsList, sourceName,
+                            (p, x) => p.MoveVertical(x));
+                        break;
+                    case "a":
+                        CommandPlayerMove(e.Command.ArgumentsAsList, sourceName,
+                            (p, x) => p.MoveHorizontal(-x));
+                        break;
+                    case "s":
+                        CommandPlayerMove(e.Command.ArgumentsAsList, sourceName,
+                            (p, x) => p.MoveVertical(-x));
+                        break;
+                    case "d":
+                        CommandPlayerMove(e.Command.ArgumentsAsList, sourceName,
+                            (p, x) => p.MoveHorizontal(x));
+                        break;
                 }
                 break;
 
-            default:
-                if (players.HasGun(sourceName))
+            case GameState.Gameplay:
+                switch (command)
                 {
-                    Player player;
-                    if (players.TryGetPlayer(command, out player))
-                    {
-                        players.Kill(player);
-                        players.RemoveGun(sourceName);
-                    }
+                    case "join":
+                        client.SendWhisper(sourceName, "You cannot join during gameplay!");
+                        break;
+
+                    case "w":
+                        CommandPlayerMove(e.Command.ArgumentsAsList, sourceName,
+                            (p, x) => p.MoveVertical(x));
+                        break;
+                    case "a":
+                        CommandPlayerMove(e.Command.ArgumentsAsList, sourceName,
+                            (p, x) => p.MoveHorizontal(-x));
+                        break;
+                    case "s":
+                        CommandPlayerMove(e.Command.ArgumentsAsList, sourceName,
+                            (p, x) => p.MoveVertical(-x));
+                        break;
+                    case "d":
+                        CommandPlayerMove(e.Command.ArgumentsAsList, sourceName,
+                            (p, x) => p.MoveHorizontal(x));
+                        break;
+
+                    case "random":
+                        if (players.HasGun(sourceName))
+                        {
+                            players.KillRandom(sourceName);
+                            players.RemoveGun(sourceName);
+                        }
+                        break;
+
+                    case "shoot":
+                        if (e.Command.ArgumentsAsList.Count >= 1)
+                        {
+                            TryKillPlayer(sourceName, e.Command.ArgumentsAsList[0]);
+                        }
+                        break;
+
+                    default:
+                        /*
+                        if (players.HasGun(sourceName))
+                        {
+                            Player player;
+                            if (players.TryGetPlayer(command, out player))
+                            {
+                                players.Kill(player);
+                                players.RemoveGun(sourceName);
+                            }
+                        }
+                        */
+                        TryKillPlayer(sourceName, command);
+                        break;
                 }
                 break;
+        }
+    }
 
-                /*
-            default:
-                // Spawn an object at the given coordinates.
-                string objectName = command;
-                if (e.Command.ArgumentsAsList.Count >= 2)
-                {
-                    if (CommandGetCoordinates(e.Command.ArgumentsAsList, out int x, out int y))
-                    {
-                        //Spawn(objectName, x, y, sourceName);
-                        PlayerDidCommand();
-                        return;
-                    }
-                }
-
-                // If control reaches this point, the spawn command didn't work.
-                client.SendWhisper(sourceName,
-                    "I'm an idiot robot, so I don't know that command. Use !help for a list of commands.");
-                break;
-                */
+    private void TryKillPlayer(string sourceName, string targetName)
+    {
+        if (players.HasGun(sourceName))
+        {
+            Player player;
+            if (players.TryGetPlayer(targetName, out player))
+            {
+                players.Kill(player);
+                players.RemoveGun(sourceName);
+            }
         }
     }
 }

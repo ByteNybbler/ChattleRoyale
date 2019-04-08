@@ -18,6 +18,9 @@ public class FruitGridElement : MonoBehaviour
     [Tooltip("Reference to the player gun GameObject.")]
     GameObject playerGun;
     [SerializeField]
+    [Tooltip("Reference to the player icon.")]
+    Image playerIcon;
+    [SerializeField]
     [Tooltip("")]
     GameObject wall;
 
@@ -30,6 +33,9 @@ public class FruitGridElement : MonoBehaviour
     {
         SetGun(false);
         SetPlayerGun(false);
+        SetColor(new Color(0, 0, 0, 0));
+        SetName("");
+
         wall.SetActive(false);
     }
 
@@ -40,7 +46,8 @@ public class FruitGridElement : MonoBehaviour
 
     public void SetColor(Color newColor)
     {
-        textName.color = newColor;
+        //textName.color = newColor;
+        playerIcon.color = newColor;
     }
 
     public bool IsOccupied()
@@ -55,13 +62,21 @@ public class FruitGridElement : MonoBehaviour
 
     public void SetGun(bool hasGun)
     {
-        if (isOccupied)
+        if (hasGun && isOccupied)
         {
+            //Debug.Log("Can't place gun there!");
             return;
         }
 
         this.hasGun = hasGun;
         gun.SetActive(hasGun);
+
+        /*
+        if (hasGun)
+        {
+            Debug.Log("Gun activated.");
+        }
+        */
 
         /*
         if (hasGun && this.hasGun)

@@ -86,12 +86,14 @@ public class Player
         }
     }
 
-    public void MoveHorizontal(int xdelta)
+    // Returns false if the player collides with something.
+    public bool MoveHorizontal(int xdelta)
     {
         ClearPlayerFromCell();
 
         int sign = UtilMath.SignWithZero(xdelta);
         int result = x;
+        bool collision = false;
         for (int i = sign; i != xdelta + sign; i += sign)
         {
             if (!grid.IsWithinMatrix(x + i, y))
@@ -100,11 +102,12 @@ public class Player
             }
             if (grid.At(x + i, y).IsOccupied())
             {
+                collision = true;
                 break;
             }
             result = x + i;
-            FruitGridElement element = grid.At(result, y);
             /*
+            FruitGridElement element = grid.At(result, y);
             if (element.HasGun())
             {
                 GetGun();
@@ -115,14 +118,16 @@ public class Player
         x = result;
 
         OccupyCurrentCell();
+        return !collision;
     }
 
-    public void MoveVertical(int ydelta)
+    public bool MoveVertical(int ydelta)
     {
         ClearPlayerFromCell();
 
         int sign = UtilMath.SignWithZero(ydelta);
         int result = y;
+        bool collision = false;
         for (int i = sign; i != ydelta + sign; i += sign)
         {
             if (!grid.IsWithinMatrix(x, y + i))
@@ -131,11 +136,12 @@ public class Player
             }
             if (grid.At(x, y + i).IsOccupied())
             {
+                collision = true;
                 break;
             }
             result = y + i;
-            FruitGridElement element = grid.At(x, result);
             /*
+            FruitGridElement element = grid.At(x, result);
             if (element.HasGun())
             {
                 GetGun();
@@ -146,6 +152,7 @@ public class Player
         y = result;
 
         OccupyCurrentCell();
+        return !collision;
     }
 
     public int GetX()
@@ -479,23 +486,6 @@ public class FruitGrid : MonoBehaviour
                                 break;
                         }
                         break;
-
-                    case "w":
-                        CommandPlayerMove(e.Command.ArgumentsAsList, sourceName,
-                            (p, x) => p.MoveVertical(x));
-                        break;
-                    case "a":
-                        CommandPlayerMove(e.Command.ArgumentsAsList, sourceName,
-                            (p, x) => p.MoveHorizontal(-x));
-                        break;
-                    case "s":
-                        CommandPlayerMove(e.Command.ArgumentsAsList, sourceName,
-                            (p, x) => p.MoveVertical(-x));
-                        break;
-                    case "d":
-                        CommandPlayerMove(e.Command.ArgumentsAsList, sourceName,
-                            (p, x) => p.MoveHorizontal(x));
-                        break;
                 }
                 break;
 
@@ -539,18 +529,42 @@ public class FruitGrid : MonoBehaviour
                         break;
 
                     default:
-                        /*
-                        if (players.HasGun(sourceName))
+                        // Try to kill the player with the given name.
+                        TryKillPlayer(sourceName, command);
+
+                        // Move the player who sent this command.
+                        Player player;
+                        if (players.TryGetPlayer(sourceName, out player))
                         {
-                            Player player;
-                            if (players.TryGetPlayer(command, out player))
+                            for (int i = 0; i < command.Length; ++i)
                             {
-                                players.Kill(player);
-                                players.RemoveGun(sourceName);
+                                char ch = command[i];
+
+                                // The movement command to run.
+                                System.Func<bool> moveCommand = () => false;
+
+                                if (ch == 'w')
+                                {
+                                    moveCommand = () => player.MoveVertical(1);
+                                }
+                                else if (ch == 'a')
+                                {
+                                    moveCommand = () => player.MoveHorizontal(-1);
+                                }
+                                else if (ch == 's')
+                                {
+                                    moveCommand = () => player.MoveVertical(-1);
+                                }
+                                else if (ch == 'd')
+                                {
+                                    moveCommand = () => player.MoveHorizontal(1);
+                                }
+                                if (!moveCommand())
+                                {
+                                    break;
+                                }
                             }
                         }
-                        */
-                        TryKillPlayer(sourceName, command);
                         break;
                 }
                 break;

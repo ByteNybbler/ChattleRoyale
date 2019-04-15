@@ -274,7 +274,7 @@ public class Playerbase
             {
                 Player target = possiblePlayers.GetRandomElement();
                 Kill(target);
-                Debug.Log("HE WHO DIES: " + target.GetName());
+                Debug.Log("KillRandom: HE WHO DIES: " + target.GetName());
             }
         }
     }

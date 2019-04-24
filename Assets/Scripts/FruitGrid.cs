@@ -37,8 +37,6 @@ public class Player
             x = UnityEngine.Random.Range(0, 8);
             y = UnityEngine.Random.Range(0, 8);
         }
-        //color = Random.ColorHSV();
-        //color = Color.red;
         color = Random.ColorHSV(0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f);
 
         OccupyCurrentCell();
@@ -47,6 +45,36 @@ public class Player
     public void GetGun()
     {
         hasGun = true;
+    }
+
+    public Color GetColor()
+    {
+        return color;
+    }
+
+    public int GetX()
+    {
+        return x;
+    }
+
+    public int GetY()
+    {
+        return y;
+    }
+
+    public string GetName()
+    {
+        return name;
+    }
+
+    public bool HasGun()
+    {
+        return hasGun;
+    }
+
+    public string GetColoredName()
+    {
+        return UtilColor.EncloseInStyleTags(color, name);
     }
 
     public void LoseGun()
@@ -153,31 +181,6 @@ public class Player
 
         OccupyCurrentCell();
         return !collision;
-    }
-
-    public int GetX()
-    {
-        return x;
-    }
-
-    public int GetY()
-    {
-        return y;
-    }
-
-    public Color GetColor()
-    {
-        return color;
-    }
-
-    public string GetName()
-    {
-        return name;
-    }
-
-    public bool HasGun()
-    {
-        return hasGun;
     }
 }
 
@@ -360,7 +363,6 @@ public class FruitGrid : MonoBehaviour
         players = new Playerbase(elements);
 
         client.ClientMessageReceived += ClientMessageReceived;
-        client.ClientCommandReceived += ClientCommandReceived;
     }
 
     public void PlayGame()
@@ -422,15 +424,6 @@ public class FruitGrid : MonoBehaviour
         arguments.RemoveAt(0);
         string sourceName = e.ChatMessage.Username;
         EnterCommand(command, arguments, sourceName);
-    }
-
-    private void ClientCommandReceived(object sender, OnChatCommandReceivedArgs e)
-    {
-        return;
-
-        string command = e.Command.CommandText;
-        string sourceName = e.Command.ChatMessage.Username;
-        EnterCommand(command, e.Command.ArgumentsAsList, sourceName);
     }
 
     private void EnterCommand(string command, List<string> arguments, string sourceName)
@@ -613,11 +606,10 @@ public class FruitGrid : MonoBehaviour
                 Player killerPlayer;
                 if (players.TryGetPlayer(sourceName, out killerPlayer))
                 {
-                    string killedName = player.GetName();
-                    string killerName = killerPlayer.GetName();
-                    string logString = killerName.ToUpper()
-                        + " has defeated " + killedName.ToUpper() + "!";
-                    //Debug.Log(logString);
+                    string killedName = player.GetColoredName();
+                    string killerName = killerPlayer.GetColoredName();
+                    string logString = killerName
+                        + " has defeated " + killedName + "!";
                     textLog.text = logString + "\n" + textLog.text;
                 }
 

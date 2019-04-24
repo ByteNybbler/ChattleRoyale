@@ -257,7 +257,8 @@ public class Playerbase
     public void Kill(Player player)
     {
         player.ClearPlayerFromCell();
-        players.Remove(player.GetName());
+        players.Remove(gameNamesToChatNames[player.GetName()]);
+        //Debug.Log("Kill: HE WHO DIES: " + player.GetName());
     }
 
     // Kills a random player.
@@ -274,7 +275,6 @@ public class Playerbase
             {
                 Player target = possiblePlayers.GetRandomElement();
                 Kill(target);
-                Debug.Log("KillRandom: HE WHO DIES: " + target.GetName());
             }
         }
     }

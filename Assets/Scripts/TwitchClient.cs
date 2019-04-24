@@ -15,6 +15,9 @@ public class TwitchClient : MonoBehaviour
     public delegate void ClientConnectedHandler(object sender, OnConnectedArgs e);
     public event ClientConnectedHandler ClientConnected;
 
+    public delegate void ClientMessageReceivedHandler(object sender, OnMessageReceivedArgs e);
+    public event ClientMessageReceivedHandler ClientMessageReceived;
+
     public delegate void ClientCommandReceivedHandler(object sender, OnChatCommandReceivedArgs e);
     public event ClientCommandReceivedHandler ClientCommandReceived;
 
@@ -40,6 +43,7 @@ public class TwitchClient : MonoBehaviour
 
         // Subscribe to the relevant events.
         client.OnConnected += Client_OnConnected;
+        client.OnMessageReceived += Client_MessageReceived;
         client.OnChatCommandReceived += Client_CommandReceived;
 
         // Connect to the channel.
@@ -56,6 +60,15 @@ public class TwitchClient : MonoBehaviour
         if (ClientConnected != null)
         {
             ClientConnected(sender, e);
+        }
+    }
+
+    // Callback for receiving a message.
+    private void Client_MessageReceived(object sender, OnMessageReceivedArgs e)
+    {
+        if (ClientMessageReceived != null)
+        {
+            ClientMessageReceived(sender, e);
         }
     }
 

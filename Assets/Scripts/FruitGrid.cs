@@ -354,6 +354,7 @@ public class FruitGrid : MonoBehaviour
 
         players = new Playerbase(elements);
 
+        client.ClientMessageReceived += ClientMessageReceived;
         client.ClientCommandReceived += ClientCommandReceived;
     }
 
@@ -405,10 +406,36 @@ public class FruitGrid : MonoBehaviour
         }
     }
 
+    private void ClientMessageReceived(object sender, OnMessageReceivedArgs e)
+    {
+        List<string> arguments = e.ChatMessage.Message.Split(' ').ToList();
+        string command = arguments[0];
+        if (command[0] == '!')
+        {
+            command = command.Remove(0, 1);
+        }
+        arguments.RemoveAt(0);
+        string sourceName = e.ChatMessage.Username;
+        EnterCommand(command, arguments, sourceName);
+    }
+
     private void ClientCommandReceived(object sender, OnChatCommandReceivedArgs e)
     {
+        return;
+
         string command = e.Command.CommandText;
         string sourceName = e.Command.ChatMessage.Username;
+        EnterCommand(command, e.Command.ArgumentsAsList, sourceName);
+    }
+
+    private void EnterCommand(string command, List<string> arguments, string sourceName)
+    {
+        // Convert the command and arguments to lower case.
+        command = command.ToLower();
+        for (int i = 0; i < arguments.Count; ++i)
+        {
+            arguments[i] = arguments[i].ToLower();
+        }
 
         switch (command)
         {
@@ -427,9 +454,9 @@ public class FruitGrid : MonoBehaviour
                         // Determine the player's in-game name.
                         // By default, use the first three letters of their Twitch name.
                         string gameName = sourceName;
-                        if (e.Command.ArgumentsAsList.Count >= 1)
+                        if (arguments.Count >= 1)
                         {
-                            gameName = e.Command.ArgumentsAsList[0];
+                            gameName = arguments[0];
                             if (gameName.Length < 3)
                             {
                                 client.SendWhisper(sourceName,
@@ -497,19 +524,19 @@ public class FruitGrid : MonoBehaviour
                         break;
 
                     case "w":
-                        CommandPlayerMove(e.Command.ArgumentsAsList, sourceName,
+                        CommandPlayerMove(arguments, sourceName,
                             (p, x) => p.MoveVertical(x));
                         break;
                     case "a":
-                        CommandPlayerMove(e.Command.ArgumentsAsList, sourceName,
+                        CommandPlayerMove(arguments, sourceName,
                             (p, x) => p.MoveHorizontal(-x));
                         break;
                     case "s":
-                        CommandPlayerMove(e.Command.ArgumentsAsList, sourceName,
+                        CommandPlayerMove(arguments, sourceName,
                             (p, x) => p.MoveVertical(-x));
                         break;
                     case "d":
-                        CommandPlayerMove(e.Command.ArgumentsAsList, sourceName,
+                        CommandPlayerMove(arguments, sourceName,
                             (p, x) => p.MoveHorizontal(x));
                         break;
 
@@ -522,9 +549,9 @@ public class FruitGrid : MonoBehaviour
                         break;
 
                     case "shoot":
-                        if (e.Command.ArgumentsAsList.Count >= 1)
+                        if (arguments.Count >= 1)
                         {
-                            TryKillPlayer(sourceName, e.Command.ArgumentsAsList[0]);
+                            TryKillPlayer(sourceName, arguments[0]);
                         }
                         break;
 

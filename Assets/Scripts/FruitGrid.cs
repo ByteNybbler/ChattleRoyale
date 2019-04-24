@@ -254,10 +254,11 @@ public class Playerbase
     }
 
     // Kills the given player.
-    public void Kill(Player player)
+    public void Kill(Player playerToKill)
     {
-        player.ClearPlayerFromCell();
-        players.Remove(gameNamesToChatNames[player.GetName()]);
+        playerToKill.ClearPlayerFromCell();
+        string killedName = playerToKill.GetName();
+        players.Remove(gameNamesToChatNames[killedName]);
         //Debug.Log("Kill: HE WHO DIES: " + player.GetName());
     }
 
@@ -336,6 +337,10 @@ public class FruitGrid : MonoBehaviour
 
     // The current state of the game.
     GameState gameState = GameState.Lobby;
+
+    [SerializeField]
+    [Tooltip("The kill log text.")]
+    UnityEngine.UI.Text textLog;
 
     private void Start()
     {
@@ -605,6 +610,17 @@ public class FruitGrid : MonoBehaviour
             Player player;
             if (players.TryGetPlayer(targetName, out player))
             {
+                Player killerPlayer;
+                if (players.TryGetPlayer(sourceName, out killerPlayer))
+                {
+                    string killedName = player.GetName();
+                    string killerName = killerPlayer.GetName();
+                    string logString = killerName.ToUpper()
+                        + " has defeated " + killedName.ToUpper() + "!";
+                    //Debug.Log(logString);
+                    textLog.text = logString + "\n" + textLog.text;
+                }
+
                 players.Kill(player);
                 players.RemoveGun(sourceName);
             }

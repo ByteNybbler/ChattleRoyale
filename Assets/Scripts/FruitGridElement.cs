@@ -75,6 +75,10 @@ public class FruitGridElement : MonoBehaviour
                 break;
 
             case StreamerObjectPicker.ObjectType.Wall:
+                if (isOccupied)
+                {
+                    return;
+                }
                 wall.SetActive(true);
                 SetOccupied(true);
                 break;

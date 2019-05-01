@@ -82,6 +82,13 @@ public class FruitGridElement : MonoBehaviour
                 wall.SetActive(true);
                 SetOccupied(true);
                 break;
+
+            case StreamerObjectPicker.ObjectType.Clear:
+                this.hasGun = false;
+                gun.SetActive(false);
+                wall.SetActive(false);
+                SetOccupied(false);
+                break;
         }
 
         /*

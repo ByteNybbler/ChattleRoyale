@@ -7,7 +7,8 @@ public class StreamerObjectPicker : MonoBehaviour
     public enum ObjectType
     {
         Gun,
-        Wall
+        Wall,
+        Clear
     }
 
     public static ObjectType jank = ObjectType.Gun;
@@ -25,5 +26,10 @@ public class StreamerObjectPicker : MonoBehaviour
     public void SetWall()
     {
         SetType(ObjectType.Wall);
+    }
+
+    public void SetClear()
+    {
+        SetType(ObjectType.Clear);
     }
 }

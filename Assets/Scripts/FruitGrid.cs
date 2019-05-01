@@ -205,11 +205,20 @@ public class Playerbase
 
     // Reference to the grid.
     List2<FruitGridElement> grid;
+    // Reference to the audio controller.
+    AudioController ac;
+
+    // How many players are present at the start of the game.
+    int playerCountStart = 0;
+    // How many players are currently alive.
+    int playerCountAlive = 0;
 
     public Playerbase(Text textLog, List2<FruitGridElement> grid)
     {
         this.textLog = textLog;
         this.grid = grid;
+
+        ac = ServiceLocator.GetAudioController();
     }
 
     public bool PlayerIsInGame(string playerName)
@@ -250,6 +259,8 @@ public class Playerbase
         {
             players[playerName] = new Player(gameName, grid);
             gameNamesToChatNames[gameName] = playerName;
+            ++playerCountStart;
+            ++playerCountAlive;
             return JoinResult.Success;
         }
     }
@@ -266,6 +277,17 @@ public class Playerbase
         player.ClearPlayerFromCell();
         string name = player.GetName();
         players.Remove(gameNamesToChatNames[name]);
+
+        --playerCountAlive;
+        float livingPlayerRatio = (float)playerCountAlive / playerCountStart;
+        if (livingPlayerRatio < 0.666f)
+        {
+            ac.SetMusicChannelVolume(1, 1.0f, 1.0f);
+        }
+        if (livingPlayerRatio < 0.333f)
+        {
+            ac.SetMusicChannelVolume(2, 1.0f, 1.0f);
+        }
     }
 
     // Logs the given kill.
@@ -365,6 +387,22 @@ public class FruitGrid : MonoBehaviour
     [Tooltip("The kill log text.")]
     Text textLog;
 
+    [SerializeField]
+    [Tooltip("The possible sounds to play when firing a gun.")]
+    SOAAudioClip sndGunFire;
+    [SerializeField]
+    [Tooltip("The music to play during gameplay.")]
+    SOAMusicChannelData musicGameplay;
+    [SerializeField]
+    [Tooltip("The sound to play when dropping a weapon.")]
+    AudioClip sndDropWeapon;
+    [SerializeField]
+    [Tooltip("The sound to play when breaking a block.")]
+    AudioClip sndBreakBrock;
+
+    // Reference to the audio controller.
+    AudioController ac;
+
     private void Start()
     {
         /*
@@ -380,6 +418,8 @@ public class FruitGrid : MonoBehaviour
             //, prefabAxisMarking: prefabAxisMarking
             );
 
+        ac = ServiceLocator.GetAudioController();
+
         players = new Playerbase(textLog, elements);
 
         client.ClientMessageReceived += ClientMessageReceived;
@@ -389,6 +429,7 @@ public class FruitGrid : MonoBehaviour
     {
         gameState = GameState.Gameplay;
         startGame.SetActive(false);
+        ac.PlayMusicGroup(musicGameplay, 1.0f, 0.0f, 1.0f);
     }
 
     private FruitGridElement GetElement(int x, int y)

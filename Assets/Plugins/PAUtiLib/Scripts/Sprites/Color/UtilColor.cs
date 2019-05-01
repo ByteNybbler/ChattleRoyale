@@ -21,7 +21,7 @@ public static class UtilColor
         return color;
     }
 
-    // Enclose the given string in rich text style tags.
+    // Encloses the given string in rich text style tags.
     public static string EncloseInStyleTags(Color color, string enclosed)
     {
         return "<color=#" + ColorUtility.ToHtmlStringRGBA(color) + ">"

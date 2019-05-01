@@ -207,16 +207,19 @@ public class Playerbase
     List2<FruitGridElement> grid;
     // Reference to the audio controller.
     AudioController ac;
+    // The gun firing sound.
+    SOAAudioClip sndGunFire;
 
     // How many players are present at the start of the game.
     int playerCountStart = 0;
     // How many players are currently alive.
     int playerCountAlive = 0;
 
-    public Playerbase(Text textLog, List2<FruitGridElement> grid)
+    public Playerbase(Text textLog, List2<FruitGridElement> grid, SOAAudioClip sndGunFire)
     {
         this.textLog = textLog;
         this.grid = grid;
+        this.sndGunFire = sndGunFire;
 
         ac = ServiceLocator.GetAudioController();
     }
@@ -288,6 +291,18 @@ public class Playerbase
         {
             ac.SetMusicChannelVolume(2, 1.0f, 1.0f);
         }
+
+        if (playerCountAlive == 1)
+        {
+            Log(players.First().Value.GetColoredName() +
+                " is victorious! They are the winner of Twitch! Congratulations!");
+        }
+    }
+
+    // Adds the given string to the log.
+    private void Log(string str)
+    {
+        textLog.text = str + "\n" + textLog.text;
     }
 
     // Logs the given kill.
@@ -297,7 +312,8 @@ public class Playerbase
         string killerName = playerKiller.GetColoredName();
         string logString = killerName
             + " has defeated " + killedName + "!";
-        textLog.text = logString + "\n" + textLog.text;
+        //textLog.text = logString + "\n" + textLog.text;
+        Log(logString);
     }
 
     // Kills the given player.
@@ -305,6 +321,7 @@ public class Playerbase
     {
         LogKill(playerKilled, playerKiller);
         RemovePlayerFromGame(playerKilled);
+        ac.PlaySFX(sndGunFire.GetRandomElement());
     }
 
     // Kills a random player.
@@ -420,7 +437,7 @@ public class FruitGrid : MonoBehaviour
 
         ac = ServiceLocator.GetAudioController();
 
-        players = new Playerbase(textLog, elements);
+        players = new Playerbase(textLog, elements, sndGunFire);
 
         client.ClientMessageReceived += ClientMessageReceived;
     }
@@ -499,8 +516,7 @@ public class FruitGrid : MonoBehaviour
         switch (command)
         {
             case "help":
-                //client.SendWhisper(sourceName, "Hello! Welcome to Chattle Royale! To join the game, wait until the Lobby screen then type, “!join” followed by a space then your three letter nickname! To move during the game, use ! then any wasd key followed by a space and a number to move that many squares, like “!w 3”. Once you have a weapon, to eliminate another player, type their username after !, !random for a random available player, or !shoot wasd to shoot in a specific direction!");
-                client.SendWhisper(sourceName, "Hello! Welcome to Chattle Royale! To join the game, wait until the Lobby screen then type, “!join” followed by a space then your three letter nickname! To move during the game, use ! then any wasd key followed by a space and a number to move that many squares, like “!w 3”. Once you have a weapon, to eliminate another player, type their username after !, or !random for a random available player!");
+                client.SendWhisper(sourceName, "Hello! To join during the wait screen, type ‘join’ and a three letter nickname.  Once the game starts, you can move by entering any ‘wasd’ key to move one space in that direction or repeated keys such as ‘www’ to move up that many squares. If you have a weapon, you can type either an enemy’s nickname or ‘random’ to eliminate another player. You can add ‘!’ to the start of any command to avoid spamming.");
                 break;
         }
 

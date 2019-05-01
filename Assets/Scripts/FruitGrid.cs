@@ -7,6 +7,7 @@ using UnityEngine;
 using TwitchLib.Client.Events;
 using System.Linq;
 using System.Text.RegularExpressions;
+using UnityEngine.UI;
 
 public enum GameState
 {
@@ -199,12 +200,15 @@ public class Playerbase
     Dictionary<string, Player> players = new Dictionary<string, Player>();
     // Dictionary mapping in-game usernames to chat usernames.
     Dictionary<string, string> gameNamesToChatNames = new Dictionary<string, string>();
+    // Reference to the text log.
+    Text textLog;
 
     // Reference to the grid.
     List2<FruitGridElement> grid;
 
-    public Playerbase(List2<FruitGridElement> grid)
+    public Playerbase(Text textLog, List2<FruitGridElement> grid)
     {
+        this.textLog = textLog;
         this.grid = grid;
     }
 
@@ -256,13 +260,29 @@ public class Playerbase
         return players.TryGetValue(playerName, out player);
     }
 
-    // Kills the given player.
-    public void Kill(Player playerToKill)
+    // Removes the given player from the game.
+    private void RemovePlayerFromGame(Player player)
     {
-        playerToKill.ClearPlayerFromCell();
-        string killedName = playerToKill.GetName();
-        players.Remove(gameNamesToChatNames[killedName]);
-        //Debug.Log("Kill: HE WHO DIES: " + player.GetName());
+        player.ClearPlayerFromCell();
+        string name = player.GetName();
+        players.Remove(gameNamesToChatNames[name]);
+    }
+
+    // Logs the given kill.
+    private void LogKill(Player playerKilled, Player playerKiller)
+    {
+        string killedName = playerKilled.GetColoredName();
+        string killerName = playerKiller.GetColoredName();
+        string logString = killerName
+            + " has defeated " + killedName + "!";
+        textLog.text = logString + "\n" + textLog.text;
+    }
+
+    // Kills the given player.
+    public void Kill(Player playerKilled, Player playerKiller)
+    {
+        LogKill(playerKilled, playerKiller);
+        RemovePlayerFromGame(playerKilled);
     }
 
     // Kills a random player.
@@ -278,7 +298,7 @@ public class Playerbase
             if (possiblePlayers.Count != 0)
             {
                 Player target = possiblePlayers.GetRandomElement();
-                Kill(target);
+                Kill(target, player);
             }
         }
     }
@@ -343,7 +363,7 @@ public class FruitGrid : MonoBehaviour
 
     [SerializeField]
     [Tooltip("The kill log text.")]
-    UnityEngine.UI.Text textLog;
+    Text textLog;
 
     private void Start()
     {
@@ -360,7 +380,7 @@ public class FruitGrid : MonoBehaviour
             //, prefabAxisMarking: prefabAxisMarking
             );
 
-        players = new Playerbase(elements);
+        players = new Playerbase(textLog, elements);
 
         client.ClientMessageReceived += ClientMessageReceived;
     }
@@ -511,6 +531,10 @@ public class FruitGrid : MonoBehaviour
                                 break;
                         }
                         break;
+
+                    default:
+                        TryMovePlayer(sourceName, command);
+                        break;
                 }
                 break;
 
@@ -554,68 +578,64 @@ public class FruitGrid : MonoBehaviour
                         break;
 
                     default:
-                        // Try to kill the player with the given name.
                         TryKillPlayer(sourceName, command);
-
-                        // Move the player who sent this command.
-                        Player player;
-                        if (players.TryGetPlayer(sourceName, out player))
-                        {
-                            for (int i = 0; i < command.Length; ++i)
-                            {
-                                char ch = command[i];
-
-                                // The movement command to run.
-                                System.Func<bool> moveCommand = () => false;
-
-                                if (ch == 'w')
-                                {
-                                    moveCommand = () => player.MoveVertical(1);
-                                }
-                                else if (ch == 'a')
-                                {
-                                    moveCommand = () => player.MoveHorizontal(-1);
-                                }
-                                else if (ch == 's')
-                                {
-                                    moveCommand = () => player.MoveVertical(-1);
-                                }
-                                else if (ch == 'd')
-                                {
-                                    moveCommand = () => player.MoveHorizontal(1);
-                                }
-                                if (!moveCommand())
-                                {
-                                    break;
-                                }
-                            }
-                        }
+                        TryMovePlayer(sourceName, command);
                         break;
                 }
                 break;
         }
     }
 
+    // Tries to move the given player.
+    private void TryMovePlayer(string sourceName, string movement)
+    {
+        Player player;
+        if (players.TryGetPlayer(sourceName, out player))
+        {
+            for (int i = 0; i < movement.Length; ++i)
+            {
+                char ch = movement[i];
+
+                // The movement command to run.
+                System.Func<bool> moveCommand = () => false;
+
+                if (ch == 'w')
+                {
+                    moveCommand = () => player.MoveVertical(1);
+                }
+                else if (ch == 'a')
+                {
+                    moveCommand = () => player.MoveHorizontal(-1);
+                }
+                else if (ch == 's')
+                {
+                    moveCommand = () => player.MoveVertical(-1);
+                }
+                else if (ch == 'd')
+                {
+                    moveCommand = () => player.MoveHorizontal(1);
+                }
+                if (!moveCommand())
+                {
+                    break;
+                }
+            }
+        }
+    }
+
+    // Tries to kill the given player.
     private void TryKillPlayer(string sourceName, string targetName)
     {
         if (players.HasGun(sourceName))
         {
-            Player player;
-            if (players.TryGetPlayer(targetName, out player))
+            Player playerKilled;
+            if (players.TryGetPlayer(targetName, out playerKilled))
             {
-                Player killerPlayer;
-                if (players.TryGetPlayer(sourceName, out killerPlayer))
-                {
-                    string killedName = player.GetColoredName();
-                    string killerName = killerPlayer.GetColoredName();
-                    string logString = killerName
-                        + " has defeated " + killedName + "!";
-                    textLog.text = logString + "\n" + textLog.text;
-                }
-
-                players.Kill(player);
-                players.RemoveGun(sourceName);
+                Player playerKiller;
+                players.TryGetPlayer(sourceName, out playerKiller);
+                players.Kill(playerKilled, playerKiller);
             }
+            players.RemoveGun(sourceName);
         }
     }
 }

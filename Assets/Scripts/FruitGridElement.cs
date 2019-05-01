@@ -62,14 +62,23 @@ public class FruitGridElement : MonoBehaviour
 
     public void SetGun(bool hasGun)
     {
-        if (hasGun && isOccupied)
+        switch (StreamerObjectPicker.jank)
         {
-            //Debug.Log("Can't place gun there!");
-            return;
-        }
+            case StreamerObjectPicker.ObjectType.Gun:
+                if (hasGun && isOccupied)
+                {
+                    return;
+                }
 
-        this.hasGun = hasGun;
-        gun.SetActive(hasGun);
+                this.hasGun = hasGun;
+                gun.SetActive(hasGun);
+                break;
+
+            case StreamerObjectPicker.ObjectType.Wall:
+                wall.SetActive(true);
+                SetOccupied(true);
+                break;
+        }
 
         /*
         if (hasGun)

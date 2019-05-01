@@ -32,4 +32,19 @@ public class StreamerObjectPicker : MonoBehaviour
     {
         SetType(ObjectType.Clear);
     }
+
+    private void CheckKey(KeyCode kc, ObjectType newType)
+    {
+        if (Input.GetKeyDown(kc))
+        {
+            SetType(newType);
+        }
+    }
+
+    private void Update()
+    {
+        CheckKey(KeyCode.W, ObjectType.Wall);
+        CheckKey(KeyCode.E, ObjectType.Clear);
+        CheckKey(KeyCode.R, ObjectType.Gun);
+    }
 }
